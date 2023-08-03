@@ -13,6 +13,10 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include <sys/types.h>
+#include <pthread.h>
+#include <locale.h>
+
+#define ADDRESS "/tmp/CoreFxPipe_IconStateNotifierPipe"
 
 /*\
 |*|
@@ -103,7 +107,7 @@ static int request_state(char *path)
 
     if (send(sock, (char*)path, strlen(path) * sizeof(char), 0) == -1)
     {
-        printf("Client: Error on send() call2 \n");
+        printf("Client: Error on send \n");
     }
     memset(send_msg, 0, s_send_len * sizeof(char));
     memset(recv_msg, 0, s_recv_len * sizeof(char));
@@ -131,6 +135,111 @@ static int request_state(char *path)
         return 0;
 
     }
+}
+
+void* ListenSocket(void *arg)
+{
+    struct sockaddr_un ca;
+    int ca_len,d1,lenght,i;
+    FILE *fp;
+    unsigned char c,c2,c3;
+    unsigned char b1,b2;
+    int d = (int)arg;
+
+    char* filePrefix = "file://";
+    char *uri;
+    int iconindex;
+
+    while(TRUE)
+    {
+        if ( listen ( d, 5) < 0 )
+        {
+            perror ("server: listen"); exit (1);
+            printf(">>exit\n");
+        }
+
+        if (( d1 = accept ( d, &ca, &ca_len)) < 0 )
+        {
+            perror ("server: accept"); exit (1);
+        }
+        /* ------------------------------------------ */
+        printf(">>reading\n");
+
+        fp = fdopen (d1, "r");
+        int b;
+        for (b = 0; b < 2; b++)
+        {
+            c=fgetc(fp);
+            c2=fgetc(fp);
+
+            lenght= c * 256 + c2;
+            printf(">>> lenght - %i \n", lenght);
+            i=0;
+
+            unsigned char bytes[lenght];
+            while (i != lenght)
+            {
+                c3=fgetc(fp);
+                bytes[i] = c3;
+                i++;
+            }
+
+            int n = sizeof(bytes);
+            printf(">> char lengh bytes - %i \n", n);
+            char chars[n +1];
+            memcpy(chars, bytes, n);
+            chars[n] = '\0';
+
+
+            if (strlen(chars)>2)
+            {
+                uri = malloc(strlen(filePrefix)+strlen(chars)+1);
+                strcpy(uri, filePrefix );
+                strcat(uri, chars);
+            }
+            else
+            {
+                printf(">>>index - %s \n", chars);
+                iconindex = atoi(chars);
+            }
+        }
+
+        printf(">>end reading\n");
+        printf(">>> result index - %i \n", iconindex);
+
+        printf(">>> result uri - %s \n", uri);
+        NautilusFileInfo *file = nautilus_file_info_lookup_for_uri(uri);
+        if (file != NULL)
+        {
+            nautilus_file_info_invalidate_extension_info(file);
+            ChangeFileEmblem(file, iconindex);
+        }
+    }
+
+}
+
+void FileStateListner()
+{
+    int s,i, d,len;
+    struct sockaddr_un sa;
+    
+    if((d = socket (1, SOCK_STREAM, 0)) < 0)
+    {
+     perror ("client: socket"); exit (1);
+    }
+
+    sa.sun_family = 1;
+    strcpy (sa.sun_path, ADDRESS);
+
+    unlink (ADDRESS);
+    len = sizeof ( sa.sun_family) + strlen (sa.sun_path);
+    if ( bind ( d, &sa, len) < 0 ) {
+        perror ("server: bind"); exit (1);
+    }
+    
+    pthread_t th1;
+    pthread_create(&th1,NULL,ListenSocket,(void*)d);
+    printf(">>listner created\n");
 }
 
 int ChangeFileEmblem(NautilusFileInfo *file, int iconIndex)
@@ -177,7 +286,6 @@ static NautilusOperationResult nautilus_test_update_file_info (
 ) {
     gchar *path;
     GFile *location = nautilus_file_info_get_location(nautilus_file);
-
     path = g_file_get_path(location);
     if (!path)
     {
@@ -279,10 +387,11 @@ void nautilus_module_list_types (
 void nautilus_module_initialize (
     GTypeModule * const module)
 {
-    printf(">>nautilus_module_initialize \n");
+    printf(">>nautilus_module_initialize \n");    
     I18N_INIT();
     nautilus_test_register_type(module);
     *provider_types = nautilus_test_get_type();
+    FileStateListner();
 }
 
 
