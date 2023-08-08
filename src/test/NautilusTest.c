@@ -1,9 +1,6 @@
-
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
 
 #include <glib.h>
 #include <sys/socket.h>
@@ -16,7 +13,12 @@
 #include <pthread.h>
 #include <locale.h>
 
-#define ADDRESS "/tmp/CoreFxPipe_IconStateNotifierPipe"
+#define FILE_URI_PREFIX "file://"
+#define AF_UNIX 1
+#define ADDRESS_FOR_NOTIF_STATE "/tmp/CoreFxPipe_IconStateNotifierPipe"
+#define ADDRESS_FOR_REQ_STATE "/tmp/CoreFxPipe_PilotInfoPipeshethpfmfs.3D-Storage20170614"
+#define RECV_MESSAGE_LENGH 5
+#define SEND_MESSAGE_LENGH 250
 
 /*\
 |*|
@@ -53,14 +55,14 @@ static char *emblems[] = {"","loadedstore", "outdatedstore","notsentstore","edit
 
 typedef struct {
 	GObject parent_slot;
-} NautilusTest;
+} Nautilus3DStorageExtension;
 
 typedef struct {
 	GObjectClass parent_slot;
-} NautilusTestClass;
+} Nautilus3DStorageExtensionClass;
 
 static GType provider_types[1];
-static GType nautilus_test_type;
+static GType nautilus_3dstorage_extension_type;
 static GObjectClass *parent_class;
 
 /*\
@@ -69,32 +71,52 @@ static GObjectClass *parent_class;
 |*|
 \*/
 
+char* ReadString(FILE *file);
 int ChangeFileEmblem(NautilusFileInfo *file, int iconIndex);
 
-static int request_state(char *path)
+char* ReadString (FILE *file)
+{
+    int lenght,i;
+    unsigned char byte[2];
+
+    byte[0]=fgetc(file);
+    byte[1]=fgetc(file);
+
+    lenght= byte[0] * 256 + byte[1];
+    unsigned char bytes[lenght];
+
+    i=0;
+    while (i != lenght)
+    {
+        bytes[i] = fgetc(file);
+        i++;
+    }
+
+    char* chars= (char*)malloc(lenght);
+    memcpy(chars, bytes, lenght);
+    chars[lenght] = '\0';
+    return chars;
+}
+
+static int Request_state(char *path)
 {
     int sock = 0;
     int data_len = 0;
-    struct sockaddr_un remote;
+    struct sockaddr_un remote;    
 
-    static const char *socket_path = "/tmp/CoreFxPipe_PilotInfoPipeshethpfmfs.3D-Storage20170614";
-    unsigned int s_recv_len = 200;
-    unsigned int s_send_len = 100;
+    char recv_msg[RECV_MESSAGE_LENGH];
+    char send_msg[SEND_MESSAGE_LENGH];
 
-    int uni = 1;
-    char recv_msg[s_recv_len];
-    char send_msg[s_send_len];
+    memset(recv_msg, 0, RECV_MESSAGE_LENGH * sizeof(char));
+    memset(send_msg, 0, SEND_MESSAGE_LENGH * sizeof(char));
 
-    memset(recv_msg, 0, s_recv_len * sizeof(char));
-    memset(send_msg, 0, s_send_len * sizeof(char));
-
-    if ((sock = socket(uni, SOCK_STREAM, 0)) == -1)
+    if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
     {
         printf("Client: Error on socket() call \n");
     }
 
-    remote.sun_family = uni;
-    strcpy(remote.sun_path, socket_path);
+    remote.sun_family = AF_UNIX;
+    strcpy(remote.sun_path, ADDRESS_FOR_REQ_STATE );
     data_len = strlen(remote.sun_path) + sizeof(remote.sun_family);
 
     printf("Client: Trying to connect... \n");
@@ -107,19 +129,16 @@ static int request_state(char *path)
 
     if (send(sock, (char*)path, strlen(path) * sizeof(char), 0) == -1)
     {
-        printf("Client: Error on send \n");
+        printf("Client: Error on send() call2 \n");
     }
-    memset(send_msg, 0, s_send_len * sizeof(char));
-    memset(recv_msg, 0, s_recv_len * sizeof(char));
+    memset(send_msg, 0, SEND_MESSAGE_LENGH * sizeof(char));
+    memset(recv_msg, 0, RECV_MESSAGE_LENGH * sizeof(char));
 
-    if ((data_len = recv(sock, recv_msg, s_recv_len, 0)) > 0)
+    if ((data_len = recv(sock, recv_msg, RECV_MESSAGE_LENGH, 0)) > 0)
     {
-        printf("Client: Data received upd: %s \n", recv_msg);
-        printf(recv_msg);
-        close(sock);                
-        int result;
-        result = atoi(recv_msg);
-        return result;
+        printf("Client: Data received upd: %s \n", recv_msg);        
+        close(sock);
+        return atoi(recv_msg);
     }
     else
     {
@@ -133,21 +152,17 @@ static int request_state(char *path)
             close(sock);
         }
         return 0;
-
     }
 }
 
 void* ListenSocket(void *arg)
 {
     struct sockaddr_un ca;
-    int ca_len,d1,lenght,i;
-    FILE *fp;
-    unsigned char c,c2,c3;
-    unsigned char b1,b2;
+    int ca_len,d1,i;
+    FILE* pipefile;
     int d = (int)arg;
 
-    char* filePrefix = "file://";
-    char *uri;
+    char* uri;
     int iconindex;
 
     while(TRUE)
@@ -157,7 +172,7 @@ void* ListenSocket(void *arg)
             perror ("server: listen"); exit (1);
             printf(">>exit\n");
         }
-
+        printf(">>связываемся с клиентом\n");
         if (( d1 = accept ( d, &ca, &ca_len)) < 0 )
         {
             perror ("server: accept"); exit (1);
@@ -165,37 +180,18 @@ void* ListenSocket(void *arg)
         /* ------------------------------------------ */
         printf(">>reading\n");
 
-        fp = fdopen (d1, "r");
+        pipefile = fdopen (d1, "r");
         int b;
         for (b = 0; b < 2; b++)
         {
-            c=fgetc(fp);
-            c2=fgetc(fp);
-
-            lenght= c * 256 + c2;
-            printf(">>> lenght - %i \n", lenght);
-            i=0;
-
-            unsigned char bytes[lenght];
-            while (i != lenght)
-            {
-                c3=fgetc(fp);
-                bytes[i] = c3;
-                i++;
-            }
-
-            int n = sizeof(bytes);
-            printf(">> char lengh bytes - %i \n", n);
-            char chars[n +1];
-            memcpy(chars, bytes, n);
-            chars[n] = '\0';
-
+            char* chars;
+            chars = ReadString(pipefile);
 
             if (strlen(chars)>2)
             {
-                uri = malloc(strlen(filePrefix)+strlen(chars)+1);
-                strcpy(uri, filePrefix );
-                strcat(uri, chars);
+                uri = malloc(strlen(FILE_URI_PREFIX)+strlen(chars)+1);
+                memcpy(uri, FILE_URI_PREFIX, strlen(FILE_URI_PREFIX));
+                memcpy(uri+strlen(FILE_URI_PREFIX), chars, strlen(chars)+1);
             }
             else
             {
@@ -204,10 +200,9 @@ void* ListenSocket(void *arg)
             }
         }
 
-        printf(">>end reading\n");
+        printf(">>> result uri - %s \n", uri);
         printf(">>> result index - %i \n", iconindex);
 
-        printf(">>> result uri - %s \n", uri);
         NautilusFileInfo *file = nautilus_file_info_lookup_for_uri(uri);
         if (file != NULL)
         {
@@ -215,28 +210,28 @@ void* ListenSocket(void *arg)
             ChangeFileEmblem(file, iconindex);
         }
     }
-
 }
 
 void FileStateListner()
 {
-    int s,i, d,len;
+    int d,len;
     struct sockaddr_un sa;
-    
-    if((d = socket (1, SOCK_STREAM, 0)) < 0)
+
+    printf(">>получаем свой сокет-дескриптор \n");
+    if((d = socket (AF_UNIX, SOCK_STREAM, 0)) < 0)
     {
      perror ("client: socket"); exit (1);
     }
 
-    sa.sun_family = 1;
-    strcpy (sa.sun_path, ADDRESS);
+    sa.sun_family = AF_UNIX;
+    strcpy (sa.sun_path, ADDRESS_FOR_NOTIF_STATE);
 
-    unlink (ADDRESS);
+    unlink (ADDRESS_FOR_NOTIF_STATE);
     len = sizeof ( sa.sun_family) + strlen (sa.sun_path);
     if ( bind ( d, &sa, len) < 0 ) {
         perror ("server: bind"); exit (1);
     }
-    
+    printf(">>слушаем запросы\n");
     pthread_t th1;
     pthread_create(&th1,NULL,ListenSocket,(void*)d);
     printf(">>listner created\n");
@@ -245,6 +240,11 @@ void FileStateListner()
 int ChangeFileEmblem(NautilusFileInfo *file, int iconIndex)
 {
     switch (iconIndex)    {
+    case 7:{
+        nautilus_file_info_add_emblem(file, emblems[2]);
+        printf("emblem: 1 \n");
+        break;
+    }
     case 1:{
         nautilus_file_info_add_emblem(file, emblems[1]);
         printf("emblem: 1 \n");
@@ -278,7 +278,7 @@ int ChangeFileEmblem(NautilusFileInfo *file, int iconIndex)
     }
 }
 
-static NautilusOperationResult nautilus_test_update_file_info (
+static NautilusOperationResult nautilus_3dstorage_extension_update_file_info (
     NautilusInfoProvider * const info_provider,
     NautilusFileInfo * const nautilus_file,
     GClosure * const update_complete,
@@ -295,7 +295,7 @@ static NautilusOperationResult nautilus_test_update_file_info (
     printf(">>> File_location - %s \n",path);
     g_object_unref(location);
 
-    int iconInd = request_state(path);
+    int iconInd = Request_state(path);
     nautilus_file_info_invalidate_extension_info(nautilus_file);
 
     printf("\nIcon index - %d \n", iconInd);
@@ -305,56 +305,56 @@ static NautilusOperationResult nautilus_test_update_file_info (
 }
 
 
-static void nautilus_test_type_info_provider_iface_init (
+static void nautilus_3dstorage_extension_type_info_provider_iface_init (
     NautilusInfoProviderIface * const iface,
     gpointer const iface_data)
 {
-    printf("nautilus_test_type_info_provider_iface_init \n");
-    iface->update_file_info = nautilus_test_update_file_info;
+    printf("nautilus_3dstorage_extension_type_info_provider_iface_init \n");
+    iface->update_file_info = nautilus_3dstorage_extension_update_file_info;
 }
 
 
-static void nautilus_test_class_init (
-	NautilusTestClass * const nautilus_test_class,
+static void nautilus_3dstorage_extension_class_init (
+    Nautilus3DStorageExtensionClass * const nautilus_3dstorage_extension_class,
     gpointer class_data)
 {
-    printf("nautilus_test_class_init\n");
-    parent_class = g_type_class_peek_parent(nautilus_test_class);
+    printf("nautilus_3dstorage_extension_class_init\n");
+    parent_class = g_type_class_peek_parent(nautilus_3dstorage_extension_class);
 }
 
 
-static void nautilus_test_register_type (
+static void nautilus_register_types (
     GTypeModule * const module)
 {
-    printf("nautilus_test_register_type \n");
+    printf("nautilus_register_types \n");
     static const GTypeInfo info = {
-        sizeof(NautilusTestClass),
+        sizeof(Nautilus3DStorageExtensionClass),
         (GBaseInitFunc) NULL,
 		(GBaseFinalizeFunc) NULL,
-		(GClassInitFunc) nautilus_test_class_init,
+        (GClassInitFunc) nautilus_3dstorage_extension_class_init,
 		(GClassFinalizeFunc) NULL,
 		NULL,
-		sizeof(NautilusTest),
+        sizeof(Nautilus3DStorageExtension),
 		0,
 		(GInstanceInitFunc) NULL,
 		(GTypeValueTable *) NULL
 	};
 
-    nautilus_test_type = g_type_module_register_type(
+    nautilus_3dstorage_extension_type = g_type_module_register_type(
                 module,
                 G_TYPE_OBJECT,
-                "NautilusTest",
+                "Nautilus3DStorageExtension",
                 &info,
                 0); 
 
     static const GInterfaceInfo type_info_provider_iface_info = {
-        (GInterfaceInitFunc) nautilus_test_type_info_provider_iface_init,
+        (GInterfaceInitFunc) nautilus_3dstorage_extension_type_info_provider_iface_init,
         (GInterfaceFinalizeFunc) NULL,
         NULL};
 
     g_type_module_add_interface(
                 module,
-                nautilus_test_type,
+                nautilus_3dstorage_extension_type,
                 NAUTILUS_TYPE_INFO_PROVIDER,
                 &type_info_provider_iface_info);
 }
@@ -362,9 +362,9 @@ static void nautilus_test_register_type (
 
 
 
-GType nautilus_test_get_type (void)
+GType nautilus_3dstorage_extension_get_type (void)
 {
-	return nautilus_test_type;
+    return nautilus_3dstorage_extension_type;
 }
 
 
@@ -389,8 +389,8 @@ void nautilus_module_initialize (
 {
     printf(">>nautilus_module_initialize \n");    
     I18N_INIT();
-    nautilus_test_register_type(module);
-    *provider_types = nautilus_test_get_type();
+    nautilus_register_types(module);
+    *provider_types = nautilus_3dstorage_extension_get_type();
     FileStateListner();
 }
 
