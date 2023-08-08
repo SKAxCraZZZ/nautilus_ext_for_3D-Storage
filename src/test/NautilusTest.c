@@ -92,7 +92,7 @@ char* ReadString (FILE *file)
         i++;
     }
 
-    char* chars= (char*)malloc(lenght);
+    char* chars= (char*)malloc(lenght+1);
     memcpy(chars, bytes, lenght);
     chars[lenght] = '\0';
     return chars;
