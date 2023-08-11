@@ -57,10 +57,6 @@ typedef struct {
     GObject parent_slot;
 } Nautilus3DStorageExtension;
 
-typedef struct {
-    GObjectClass parent_slot;
-} Nautilus3DStorageExtensionClass;
-
 static GType provider_types[1];
 static GType nautilus_3dstorage_extension_type;
 static GObjectClass *parent_class;
@@ -71,11 +67,11 @@ static GObjectClass *parent_class;
 |*|
 \*/
 
-char* ReadString(FILE *file);
-char* AddFilePrefix(char* pathToFile);
+char *ReadString(FILE *file);
+char *AddFilePrefix(char *pathToFile);
 int ChangeFileEmblem(NautilusFileInfo *file, int iconIndex);
 
-char* ReadString (FILE *file)
+char *ReadString (FILE *file)
 {
     int lenght,i;
     unsigned char byte[2];
@@ -93,15 +89,15 @@ char* ReadString (FILE *file)
         i++;
     }
 
-    char* chars= (char*)malloc(lenght+1);
+    char *chars= (char*)malloc(lenght+1);
     memcpy(chars, bytes, lenght);
     chars[lenght] = '\0';
     return chars;
 }
 
-char* AddFilePrefix(char* pathToFile)
+char *AddFilePrefix(char *pathToFile)
 {
-    char* uri = malloc(strlen(FILE_URI_PREFIX) + strlen(pathToFile) + 1);
+    char *uri = malloc(strlen(FILE_URI_PREFIX) + strlen(pathToFile) + 1);
     memcpy(uri, FILE_URI_PREFIX, strlen(FILE_URI_PREFIX));
     memcpy(uri + strlen(FILE_URI_PREFIX), pathToFile, strlen(pathToFile) + 1);
     return uri;
@@ -164,12 +160,12 @@ static int Request_state(char *path)
     }
 }
 
-void* ListenSocket(void *arg)
+void *ListenSocket(void *arg)
 {
     struct sockaddr_un socket_address;
     int addres_lenght, file_descriptor;
-    FILE* pipefile;
-    char* uri;
+    FILE *pipefile;
+    char *uri;
     int iconindex;
 
     while(TRUE)
@@ -191,7 +187,7 @@ void* ListenSocket(void *arg)
         int b;
         for (b = 0; b < 2; b++)
         {
-            char* chars;
+            char *chars;
             chars = ReadString(pipefile);
 
             if (strlen(chars)>2)
@@ -217,7 +213,7 @@ void* ListenSocket(void *arg)
     }
 }
 
-void FileStateListner()
+void FileStateListener()
 {
     int state_listner_socket,lenght;
     struct sockaddr_un socket_address;
@@ -316,7 +312,7 @@ static void nautilus_3dstorage_extension_type_info_provider_iface_init (
 
 
 static void nautilus_3dstorage_extension_class_init (
-    Nautilus3DStorageExtensionClass * const nautilus_3dstorage_extension_class,
+    GObjectClass * const nautilus_3dstorage_extension_class,
     gpointer class_data)
 {
     printf("nautilus_3dstorage_extension_class_init\n");
@@ -329,7 +325,7 @@ static void nautilus_register_types (
 {
     printf("nautilus_register_types \n");
     static const GTypeInfo info = {
-        sizeof(Nautilus3DStorageExtensionClass),
+        sizeof(GObjectClass),
         (GBaseInitFunc) NULL,
         (GBaseFinalizeFunc) NULL,
         (GClassInitFunc) nautilus_3dstorage_extension_class_init,
@@ -376,8 +372,8 @@ void nautilus_module_shutdown (void)
 
 
 void nautilus_module_list_types (
-        const GType** const types,
-        int* const num_types)
+        const GType ** const types,
+        int * const num_types)
 {
     *types = provider_types;
     *num_types = G_N_ELEMENTS(provider_types);
@@ -392,7 +388,7 @@ void nautilus_module_initialize (
     I18N_INIT();
     nautilus_register_types(module);
     *provider_types = nautilus_3dstorage_extension_get_type();
-    FileStateListner();
+    FileStateListener();
 }
 
 
