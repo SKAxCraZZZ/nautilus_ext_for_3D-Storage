@@ -1,4 +1,4 @@
-set(CURRENT_TARGET "nautilus-test")
+set(CURRENT_TARGET "nautilus-3DStorage")
 
 file(GLOB SOURCE_FILES "*.c")
 file(GLOB HEADER_FILES "*.h")
