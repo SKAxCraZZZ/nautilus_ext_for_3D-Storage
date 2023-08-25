@@ -165,7 +165,7 @@ void* ListenSocket(void* arg) {
             exit(1);
             printf(">>exit\n");
         }
-        printf(">>связываемся с клиентом\n");
+        printf(">>connect to client\n");
         if ((file_descriptor = accept(arg, &socket_address, &addres_lenght)) < 0) {
             perror("server: accept");
             exit(1);
@@ -203,7 +203,7 @@ void FileStateListner() {
     int state_listner_socket, lenght;
     struct sockaddr_un socket_address;
 
-    printf(">>получаем свой сокет-дескриптор \n");
+    printf(">>get socket descriptor\n");
     if ((state_listner_socket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
         perror("client: socket");
         exit(1);
@@ -218,7 +218,7 @@ void FileStateListner() {
         perror("server: bind");
         exit(1);
     }
-    printf(">>слушаем запросы\n");
+    printf(">>listening to requests\n");
     pthread_t th1;
     pthread_create(&th1, NULL, ListenSocket, (void*)state_listner_socket);
     printf(">>listner created\n");
