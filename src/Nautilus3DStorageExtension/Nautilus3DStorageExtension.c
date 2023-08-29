@@ -70,18 +70,19 @@ static GObjectClass* parent_class;
 
 char* ReadString(FILE* file);
 
-char* AddFilePrefix(char* pathToFile);
+char* AddFilePrefix(char* path_to_file);
 
-int ChangeFileEmblem(NautilusFileInfo* file, int iconIndex);
+int ChangeFileEmblem(NautilusFileInfo* file, int icon_index);
 
 char* ReadString(FILE* file) {
     int lenght, i;
+    int char_count = 256;
     unsigned char byte[2];
 
     byte[0] = fgetc(file);
     byte[1] = fgetc(file);
-
-    lenght = byte[0] * 256 + byte[1];
+    
+    lenght = byte[0] * char_count + byte[1];
     unsigned char bytes[lenght];
 
     i = 0;
@@ -96,14 +97,14 @@ char* ReadString(FILE* file) {
     return chars;
 }
 
-char* AddFilePrefix(char* pathToFile) {
-    char* uri = malloc(strlen(FILE_URI_PREFIX) + strlen(pathToFile) + 1);
+char* AddFilePrefix(char* path_to_file) {
+    char* uri = malloc(strlen(FILE_URI_PREFIX) + strlen(path_to_file) + 1);
     memcpy(uri, FILE_URI_PREFIX, strlen(FILE_URI_PREFIX));
-    memcpy(uri + strlen(FILE_URI_PREFIX), pathToFile, strlen(pathToFile) + 1);
+    memcpy(uri + strlen(FILE_URI_PREFIX), path_to_file, strlen(path_to_file) + 1);
     return uri;
 }
 
-static int Request_state(char* path) {
+static int RequestState(char* path) {
     int socket_for_requests = 0;
     int data_len = 0;
     struct sockaddr_un socket_address;
@@ -155,9 +156,9 @@ static int Request_state(char* path) {
 void* ListenSocket(void* arg) {
     struct sockaddr_un socket_address;
     int addres_lenght, file_descriptor;
-    FILE* pipefile;
+    FILE* pipe_file;
     char* uri;
-    int iconindex;
+    int icon_index;
 
     while (TRUE) {
         if (listen(arg, 5) < 0) {
@@ -173,38 +174,38 @@ void* ListenSocket(void* arg) {
         /* ------------------------------------------ */
         printf(">>reading\n");
 
-        pipefile = fdopen(file_descriptor, "r");
+        pipe_file = fdopen(file_descriptor, "r");
         int b;
         for (b = 0; b < 2; b++) {
             char* chars;
-            chars = ReadString(pipefile);
+            chars = ReadString(pipe_file);
 
             if (strlen(chars) > 2) {
                 uri = AddFilePrefix(chars);
             }
             else {
                 printf(">>>index - %s \n", chars);
-                iconindex = atoi(chars);
+                icon_index = atoi(chars);
             }
         }
 
         printf(">>> result uri - %s \n", uri);
-        printf(">>> result index - %i \n", iconindex);
+        printf(">>> result index - %i \n", icon_index);
 
         NautilusFileInfo* file = nautilus_file_info_lookup_for_uri(uri);
         if (file != NULL) {
             nautilus_file_info_invalidate_extension_info(file);
-            ChangeFileEmblem(file, iconindex);
+            ChangeFileEmblem(file, icon_index);
         }
     }
 }
 
-void FileStateListner() {
-    int state_listner_socket, lenght;
+void FileStateListener() {
+    int state_listener_socket, lenght;
     struct sockaddr_un socket_address;
 
     printf(">>get socket descriptor\n");
-    if ((state_listner_socket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+    if ((state_listener_socket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
         perror("client: socket");
         exit(1);
     }
@@ -214,18 +215,18 @@ void FileStateListner() {
 
     unlink(ADDRESS_FOR_NOTIF_STATE);
     lenght = sizeof(socket_address.sun_family) + strlen(socket_address.sun_path);
-    if (bind(state_listner_socket, &socket_address, lenght) < 0) {
+    if (bind(state_listener_socket, &socket_address, lenght) < 0) {
         perror("server: bind");
         exit(1);
     }
     printf(">>listening to requests\n");
     pthread_t th1;
-    pthread_create(&th1, NULL, ListenSocket, (void*)state_listner_socket);
-    printf(">>listner created\n");
+    pthread_create(&th1, NULL, ListenSocket, (void*)state_listener_socket);
+    printf(">>listener created\n");
 }
 
-int ChangeFileEmblem(NautilusFileInfo* file, int iconIndex) {
-    switch (iconIndex) {
+int ChangeFileEmblem(NautilusFileInfo* file, int icon_index) {
+    switch (icon_index) {
     case 1: {
         nautilus_file_info_add_emblem(file, emblems[1]);
         printf("emblem: 1 \n");
@@ -275,7 +276,7 @@ static NautilusOperationResult nautilus_3dstorage_extension_update_file_info(
     printf(">>> File_location - %s \n", path);
     g_object_unref(location);
 
-    int iconInd = Request_state(path);
+    int iconInd = RequestState(path);
     nautilus_file_info_invalidate_extension_info(nautilus_file);
 
     printf("\nIcon index - %d \n", iconInd);
@@ -362,7 +363,7 @@ void nautilus_module_initialize(
     I18N_INIT();
     nautilus_register_types(module);
     *provider_types = nautilus_3dstorage_extension_get_type();
-    FileStateListner();
+    FileStateListener();
 }
 
 
