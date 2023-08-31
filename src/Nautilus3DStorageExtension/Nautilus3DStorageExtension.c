@@ -54,10 +54,6 @@ int сurrentEmblem = 0;
 static char* emblems[] = { "", "loadedstore", "outdatedstore", "notsentstore", "editedstore", "abortedstore", "", "",
                           "conflictstore" };
 
-typedef struct {
-    GObject parent_slot;
-} Nautilus3DStorageExtension;
-
 static GType provider_types[1];
 static GType nautilus_3dstorage_extension_type;
 static GObjectClass* parent_class;
@@ -312,7 +308,7 @@ static void nautilus_register_types(
             (GClassInitFunc)nautilus_3dstorage_extension_class_init,
             (GClassFinalizeFunc)NULL,
             NULL,
-            sizeof(Nautilus3DStorageExtension),
+            sizeof(GObject),
             0,
             (GInstanceInitFunc)NULL,
             (GTypeValueTable*)NULL
