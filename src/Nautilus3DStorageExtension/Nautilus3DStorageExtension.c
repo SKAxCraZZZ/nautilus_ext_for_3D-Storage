@@ -57,6 +57,10 @@ static char* emblems[] = { "", "loadedstore", "outdatedstore", "notsentstore", "
 static GType provider_types[1];
 static GType nautilus_3dstorage_extension_type;
 static GObjectClass* parent_class;
+typedef struct FileStateInfo {
+    char* uri;
+    int icon_index;
+} FileStateInfo;
 
 /*\
 |*|
@@ -65,6 +69,8 @@ static GObjectClass* parent_class;
 \*/
 
 char* ReadString(FILE* file);
+
+FileStateInfo GetFileInfo(FILE* pipe_file);
 
 char* AddFilePrefix(char* path_to_file);
 
@@ -77,7 +83,7 @@ char* ReadString(FILE* file) {
 
     byte[0] = fgetc(file);
     byte[1] = fgetc(file);
-    
+
     lenght = byte[0] * char_count + byte[1];
     unsigned char bytes[lenght];
 
@@ -91,6 +97,23 @@ char* ReadString(FILE* file) {
     memcpy(chars, bytes, lenght);
     chars[lenght] = '\0';
     return chars;
+}
+
+FileStateInfo GetFileInfo(FILE* pipe_file) {
+    int b;
+    FileStateInfo file_info;
+    for (b = 0; b < 2; b++) {
+        char* chars;
+        chars = ReadString(pipe_file);
+
+        if (strlen(chars) > 2)
+            file_info.uri = AddFilePrefix(chars);
+        else
+            file_info.icon_index = atoi(chars);
+    }
+    printf(">>> result uri - %s \n", file_info.uri);
+    printf(">>> result index - %i \n", file_info.icon_index);
+    return file_info;
 }
 
 char* AddFilePrefix(char* path_to_file) {
@@ -155,6 +178,7 @@ void* ListenSocket(void* arg) {
     FILE* pipe_file;
     char* uri;
     int icon_index;
+    FileStateInfo file_info;
 
     while (TRUE) {
         if (listen(arg, 5) < 0) {
@@ -171,27 +195,15 @@ void* ListenSocket(void* arg) {
         printf(">>reading\n");
 
         pipe_file = fdopen(file_descriptor, "r");
-        int b;
-        for (b = 0; b < 2; b++) {
-            char* chars;
-            chars = ReadString(pipe_file);
+        file_info = GetFileInfo(pipe_file);
 
-            if (strlen(chars) > 2) {
-                uri = AddFilePrefix(chars);
-            }
-            else {
-                printf(">>>index - %s \n", chars);
-                icon_index = atoi(chars);
-            }
-        }
+        printf(">>> result uri - %s \n", file_info.uri);
+        printf(">>> result index - %i \n", file_info.icon_index);
 
-        printf(">>> result uri - %s \n", uri);
-        printf(">>> result index - %i \n", icon_index);
-
-        NautilusFileInfo* file = nautilus_file_info_lookup_for_uri(uri);
+        NautilusFileInfo* file = nautilus_file_info_lookup_for_uri(file_info.uri);
         if (file != NULL) {
             nautilus_file_info_invalidate_extension_info(file);
-            ChangeFileEmblem(file, icon_index);
+            ChangeFileEmblem(file, file_info.icon_index);
         }
     }
 }
