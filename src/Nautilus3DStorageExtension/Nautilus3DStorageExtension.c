@@ -50,7 +50,7 @@
 |*|
 \*/
 
-int сurrentEmblem = 0;
+int currentEmblem = 0;
 static char* emblems[] = { "", "loadedstore", "outdatedstore", "notsentstore", "editedstore", "abortedstore", "", "",
                           "conflictstore" };
 
