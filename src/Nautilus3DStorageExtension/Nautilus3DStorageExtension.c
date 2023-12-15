@@ -18,7 +18,6 @@
 #define ADDRESS_FOR_NOTIF_STATE "/tmp/CoreFxPipe_IconStateNotifierPipe"
 #define ADDRESS_FOR_REQ_STATE "/tmp/CoreFxPipe_PilotInfoPipeshethpfmfs.3D-Storage20170614"
 #define RECV_MESSAGE_LENGTH 5
-#define SEND_MESSAGE_LENGTH 250
 
 /*\
 |*|
@@ -70,6 +69,8 @@ typedef struct FileStateInfo {
 
 char* ReadString(FILE* file);
 
+char* PrepareString(char* string);
+
 FileStateInfo GetFileInfo(FILE* pipe_file);
 
 char* AddFilePrefix(char* path_to_file);
@@ -97,6 +98,18 @@ char* ReadString(FILE* file) {
     memcpy(chars, bytes, lenght);
     chars[lenght] = '\0';
     return chars;
+}
+
+char* PrepareString(char* string) {
+    int stringLength = strlen(string);
+    char b1 = (char)(stringLength / 255);
+    char b2 = (char)(stringLength % 255);
+
+    char* preparedString = (char*)malloc(sizeof(char) + sizeof(char) + stringLength);
+    memcpy(preparedString, &b1, sizeof(char));
+    memcpy(preparedString + sizeof(char), &b2, sizeof(char));
+    memcpy(preparedString + sizeof(char) + sizeof(char), string, stringLength);
+    return preparedString;
 }
 
 FileStateInfo GetFileInfo(FILE* pipe_file) {
@@ -128,11 +141,11 @@ static int RequestState(char* path) {
     int data_len = 0;
     struct sockaddr_un socket_address;
 
+
+    int sendMessageLength = strlen(path + sizeof(char) + sizeof(char)) + 2;
     char recv_msg[RECV_MESSAGE_LENGTH];
-    char send_msg[SEND_MESSAGE_LENGTH];
 
     memset(recv_msg, 0, RECV_MESSAGE_LENGTH * sizeof(char));
-    memset(send_msg, 0, SEND_MESSAGE_LENGTH * sizeof(char));
 
     if ((socket_for_requests = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         printf("Client: Error on socket() call \n");
@@ -147,12 +160,10 @@ static int RequestState(char* path) {
         printf("Client: Error on connect call \n");
     }
     printf("Client: Connected \n");
-    send_msg < path;
 
-    if (send(socket_for_requests, (char*)path, strlen(path) * sizeof(char), 0) == -1) {
+    if (send(socket_for_requests, path, sendMessageLength, 0) == -1) {
         printf("Client: Error on send() call2 \n");
     }
-    memset(send_msg, 0, SEND_MESSAGE_LENGTH * sizeof(char));
     memset(recv_msg, 0, RECV_MESSAGE_LENGTH * sizeof(char));
 
     if ((data_len = recv(socket_for_requests, recv_msg, RECV_MESSAGE_LENGTH, 0)) > 0) {
@@ -181,13 +192,13 @@ void* ListenSocket(void* arg) {
     FileStateInfo file_info;
 
     while (TRUE) {
-        if (listen(arg, 5) < 0) {
+        if (listen((int)arg, 5) < 0) {
             perror("server: listen");
             exit(1);
             printf(">>exit\n");
         }
         printf(">>connect to client\n");
-        if ((file_descriptor = accept(arg, &socket_address, &addres_lenght)) < 0) {
+        if ((file_descriptor = accept((int)arg, &socket_address, &addres_lenght)) < 0) {
             perror("server: accept");
             exit(1);
         }
@@ -235,6 +246,11 @@ void FileStateListener() {
 
 int ChangeFileEmblem(NautilusFileInfo* file, int icon_index) {
     switch (icon_index) {
+    case 0: {
+        nautilus_file_info_add_emblem(file, emblems[0]);
+        printf("emblem: 0 \n");
+        break;
+    }
     case 1: {
         nautilus_file_info_add_emblem(file, emblems[1]);
         printf("emblem: 1 \n");
@@ -266,6 +282,7 @@ int ChangeFileEmblem(NautilusFileInfo* file, int icon_index) {
         break;
     }
     }
+    return 0;
 }
 
 static NautilusOperationResult nautilus_3dstorage_extension_update_file_info(
@@ -274,17 +291,17 @@ static NautilusOperationResult nautilus_3dstorage_extension_update_file_info(
     GClosure* const update_complete,
     NautilusOperationHandle** const operation_handle
 ) {
-    gchar* path;
+    char* path;
     GFile* location = nautilus_file_info_get_location(nautilus_file);
     path = g_file_get_path(location);
     if (!path) {
         return NAUTILUS_OPERATION_COMPLETE;
     }
-
     printf(">>> File_location - %s \n", path);
     g_object_unref(location);
 
-    int iconInd = RequestState(path);
+    char* requestString = PrepareString(path);
+    int iconInd = RequestState(requestString);
     nautilus_file_info_invalidate_extension_info(nautilus_file);
 
     printf("\nIcon index - %d \n", iconInd);
