@@ -50,8 +50,7 @@
 \*/
 
 int currentEmblem = 0;
-static char* emblems[] = { "", "loadedstore", "outdatedstore", "notsentstore", "editedstore", "abortedstore", "", "",
-                          "conflictstore" };
+static char* emblems[] = { "", "emblem-loadedstore", "emblem-outdatedstore", "emblem-notsentstore", "emblem-editedstore", "emblem-abortedstore", "", "", "emblem-conflictstore" };
 
 static GType provider_types[1];
 static GType nautilus_3dstorage_extension_type;
