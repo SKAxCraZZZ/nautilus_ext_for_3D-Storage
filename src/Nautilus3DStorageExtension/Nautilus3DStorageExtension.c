@@ -50,7 +50,8 @@
 \*/
 
 int currentEmblem = 0;
-static char* emblems[] = { "", "emblem-loadedstore", "emblem-outdatedstore", "emblem-notsentstore", "emblem-editedstore", "emblem-abortedstore", "", "", "emblem-conflictstore" };
+static char* emblems[] = { "", "emblem-loadedstore", "emblem-outdatedstore", "emblem-notsentstore", "emblem-editedstore", "emblem-abortedstore", "", "",
+                           "emblem-conflictstore" };
 
 static GType provider_types[1];
 static GType nautilus_3dstorage_extension_type;
@@ -65,7 +66,6 @@ typedef struct FileStateInfo {
 |*| FUNCTIONS
 |*|
 \*/
-
 char* ReadString(FILE* file);
 
 char* PrepareString(char* string);
@@ -101,12 +101,12 @@ char* ReadString(FILE* file) {
 
 char* PrepareString(char* string) {
     int stringLength = strlen(string);
-    char b1 = (char)(stringLength / 255);
-    char b2 = (char)(stringLength % 255);
+    char byte1 = (char)(stringLength / 255);
+    char byte2 = (char)(stringLength % 255);
 
     char* preparedString = (char*)malloc(sizeof(char) + sizeof(char) + stringLength);
-    memcpy(preparedString, &b1, sizeof(char));
-    memcpy(preparedString + sizeof(char), &b2, sizeof(char));
+    memcpy(preparedString, &byte1, sizeof(char));
+    memcpy(preparedString + sizeof(char), &byte2, sizeof(char));
     memcpy(preparedString + sizeof(char) + sizeof(char), string, stringLength);
     return preparedString;
 }
@@ -301,6 +301,7 @@ static NautilusOperationResult nautilus_3dstorage_extension_update_file_info(
 
     char* requestString = PrepareString(path);
     int iconInd = RequestState(requestString);
+    free(requestString);
     nautilus_file_info_invalidate_extension_info(nautilus_file);
 
     printf("\nIcon index - %d \n", iconInd);
