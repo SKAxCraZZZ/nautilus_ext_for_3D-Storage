@@ -68,7 +68,7 @@ typedef struct FileStateInfo {
 \*/
 char* ReadString(FILE* file);
 
-char* PrepareString(char* string);
+char* PrependStringLength(char* string);
 
 FileStateInfo GetFileInfo(FILE* pipe_file);
 
@@ -99,16 +99,16 @@ char* ReadString(FILE* file) {
     return chars;
 }
 
-char* PrepareString(char* string) {
+char* PrependStringLength(char* string) {
     int stringLength = strlen(string);
-    char byte1 = (char)(stringLength / 255);
-    char byte2 = (char)(stringLength % 255);
+    char stringLengthFirstByte = (char)(stringLength / 255);
+    char stringLengthSecondByte = (char)(stringLength % 255);
 
-    char* preparedString = (char*)malloc(sizeof(char) + sizeof(char) + stringLength);
-    memcpy(preparedString, &byte1, sizeof(char));
-    memcpy(preparedString + sizeof(char), &byte2, sizeof(char));
-    memcpy(preparedString + sizeof(char) + sizeof(char), string, stringLength);
-    return preparedString;
+    char* resultString = (char*)malloc(sizeof(char) + sizeof(char) + stringLength);
+    memcpy(resultString, &byte1, sizeof(char));
+    memcpy(resultString + sizeof(char), &byte2, sizeof(char));
+    memcpy(resultString + sizeof(char) + sizeof(char), string, stringLength);
+    return resultString;
 }
 
 FileStateInfo GetFileInfo(FILE* pipe_file) {
@@ -299,7 +299,7 @@ static NautilusOperationResult nautilus_3dstorage_extension_update_file_info(
     printf(">>> File_location - %s \n", path);
     g_object_unref(location);
 
-    char* requestString = PrepareString(path);
+    char* requestString = PrependStringLength(path);
     int iconInd = RequestState(requestString);
     free(requestString);
     nautilus_file_info_invalidate_extension_info(nautilus_file);
