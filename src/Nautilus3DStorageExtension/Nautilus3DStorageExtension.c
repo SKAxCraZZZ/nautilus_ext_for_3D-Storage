@@ -105,8 +105,8 @@ char* PrependStringLength(char* string) {
     char stringLengthSecondByte = (char)(stringLength % 255);
 
     char* resultString = (char*)malloc(sizeof(char) + sizeof(char) + stringLength);
-    memcpy(resultString, &byte1, sizeof(char));
-    memcpy(resultString + sizeof(char), &byte2, sizeof(char));
+    memcpy(resultString, &stringLengthFirstByte, sizeof(char));
+    memcpy(resultString + sizeof(char), &stringLengthSecondByte, sizeof(char));
     memcpy(resultString + sizeof(char) + sizeof(char), string, stringLength);
     return resultString;
 }
@@ -140,8 +140,8 @@ static int RequestState(char* path) {
     int data_len = 0;
     struct sockaddr_un socket_address;
 
-
-    int sendMessageLength = strlen(path + sizeof(char) + sizeof(char)) + 2;
+    char* PathWithStringLength = PrependStringLength(path);
+    int sendMessageLength = strlen(PathWithStringLength + sizeof(char) + sizeof(char)) + 2;
     char recv_msg[RECV_MESSAGE_LENGTH];
 
     memset(recv_msg, 0, RECV_MESSAGE_LENGTH * sizeof(char));
@@ -160,11 +160,11 @@ static int RequestState(char* path) {
     }
     printf("Client: Connected \n");
 
-    if (send(socket_for_requests, path, sendMessageLength, 0) == -1) {
+    if (send(socket_for_requests, PathWithStringLength, sendMessageLength, 0) == -1) {
         printf("Client: Error on send() call2 \n");
     }
     memset(recv_msg, 0, RECV_MESSAGE_LENGTH * sizeof(char));
-
+    free(PathWithStringLength);
     if ((data_len = recv(socket_for_requests, recv_msg, RECV_MESSAGE_LENGTH, 0)) > 0) {
         printf("Client: Data received upd: %s \n", recv_msg);
         close(socket_for_requests);
@@ -299,9 +299,8 @@ static NautilusOperationResult nautilus_3dstorage_extension_update_file_info(
     printf(">>> File_location - %s \n", path);
     g_object_unref(location);
 
-    char* requestString = PrependStringLength(path);
-    int iconInd = RequestState(requestString);
-    free(requestString);
+    int iconInd = RequestState(path);
+
     nautilus_file_info_invalidate_extension_info(nautilus_file);
 
     printf("\nIcon index - %d \n", iconInd);
