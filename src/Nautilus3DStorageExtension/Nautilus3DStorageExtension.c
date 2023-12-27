@@ -141,7 +141,9 @@ static int RequestState(char* path) {
     struct sockaddr_un socket_address;
 
     char* PathWithStringLength = PrependStringLength(path);
-    int sendMessageLength = strlen(PathWithStringLength + sizeof(char) + sizeof(char)) + 2;
+    int sizeOfTwoByteForStrLength = sizeof(char) * 2;
+    int sizeOfTerminalNull = 2;
+    int sendMessageLength = strlen(PathWithStringLength + sizeOfTwoByteForStrLength) + sizeOfTerminalNull;
     char recv_msg[RECV_MESSAGE_LENGTH];
 
     memset(recv_msg, 0, RECV_MESSAGE_LENGTH * sizeof(char));
