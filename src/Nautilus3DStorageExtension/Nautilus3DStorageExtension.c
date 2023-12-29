@@ -16,7 +16,7 @@
 #define FILE_URI_PREFIX "file://"
 #define AF_UNIX 1
 #define ADDRESS_FOR_NOTIF_STATE "/tmp/CoreFxPipe_IconStateNotifierPipe"
-#define ADDRESS_FOR_REQ_STATE "/tmp/CoreFxPipe_PilotInfoPipeshethpfmfs.3D-Storage20170614"
+#define ADDRESS_FOR_REQ_STATE "/tmp/CoreFxPipe_PilotInfoPipepfmfs.3D-Storage20170614"
 #define RECV_MESSAGE_LENGTH 5
 
 /*\
