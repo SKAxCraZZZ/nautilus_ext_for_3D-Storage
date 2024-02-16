@@ -1,0 +1,55 @@
+// Proto data contract
+//
+// Note: START and END tags are used in comments to define sections used in
+// tutorials.  They are not part of the syntax for Protocol Buffers.
+//
+// To get an in-depth walkthrough of this file and the related examples, see:
+// https://developers.google.com/protocol-buffers/docs/tutorials
+
+// [START declaration]
+syntax = "proto2"; //use proto 2. proto3 now is beta version
+package DataContracts;
+// [END declaration]
+
+// [START data]
+// guid message
+message guid 
+{
+  optional fixed64 lo = 1; // the first 8 bytes of the guid
+  optional fixed64 hi = 2; // the second 8 bytes of the guid
+}
+
+enum ShellResult 
+{
+    Ok = 0;
+    Error = 1;
+}
+
+message CommandInvokeData 
+{
+  required guid commandId = 1;		//Guid
+  repeated string paths = 2;		//List<string>
+  required string extraArgs = 3;	//string
+}
+
+message CommandInvokeResult 
+{
+  optional ShellResult result = 1;
+  optional bytes data = 2;  
+}
+
+message MenuItemData
+{
+	optional string header = 1;
+	required guid commandId = 2;
+	optional bytes icon = 3;
+	optional bool isEnabled = 4;
+	repeated MenuItemData subMenuItems = 5; //List<MenuItemData>
+}
+
+message MenuData 
+{
+	optional ShellResult result = 1;
+	repeated MenuItemData items = 2;	//List<MenuItemData>
+}
+// [END datat]

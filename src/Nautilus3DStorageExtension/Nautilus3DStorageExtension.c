@@ -9,15 +9,19 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/un.h>
-#include <sys/types.h>
 #include <pthread.h>
 #include <locale.h>
+#include "Commands/Proto/protobuf-c/protobuf-c.h"
+#include "Commands/Proto/DataContract.pb-c.h"
+#include "Commands/Utils.h"
+#include "menu.h"
 
 #define FILE_URI_PREFIX "file://"
 #define AF_UNIX 1
 #define ADDRESS_FOR_NOTIF_STATE "/tmp/CoreFxPipe_IconStateNotifierPipe"
-#define ADDRESS_FOR_REQ_STATE "/tmp/CoreFxPipe_PilotInfoPipepfmfs.3D-Storage20170614"
-#define RECV_MESSAGE_LENGTH 5
+#define ADDRESS_FOR_REQ_STATE "/tmp/CoreFxPipe_PilotInfoPipeshethpfmfs.3D-Storage20170614"
+#define ADDRESS_FOR_COMMAND "/tmp/CoreFxPipe_PilotCommandPipeshethpfmfs.3D-Storage20170614"
+#define RECV_MESSAGE_LENGTH 1000
 
 /*\
 |*|
@@ -50,12 +54,15 @@
 \*/
 
 int currentEmblem = 0;
-static char* emblems[] = { "", "emblem-loadedstore", "emblem-outdatedstore", "emblem-notsentstore", "emblem-editedstore", "emblem-abortedstore", "", "",
-                           "emblem-conflictstore" };
+static char* emblems[] = { "", "emblem-loadedstore", "emblem-outdatedstore", "emblem-notsentstore", "emblem-editedstore",
+                          "emblem-abortedstore", "", "",
+                          "emblem-conflictstore" };
 
 static GType provider_types[1];
 static GType nautilus_3dstorage_extension_type;
 static GObjectClass* parent_class;
+//DataContracts__Guid *guidCommand;
+char** pathCommand;
 typedef struct FileStateInfo {
     char* uri;
     int icon_index;
@@ -70,9 +77,15 @@ char* ReadString(FILE* file);
 
 char* PrependStringLength(char* string);
 
+char* GetFilePath(NautilusFileInfo fileInfo);
+
 FileStateInfo GetFileInfo(FILE* pipe_file);
 
 char* AddFilePrefix(char* path_to_file);
+
+DataContracts__CommandInvokeResult SerializeAndSend(DataContracts__CommandInvokeData instance);
+
+static void commandInvoke(NautilusMenuItem* item, gpointer user_data);
 
 int ChangeFileEmblem(NautilusFileInfo* file, int icon_index);
 
@@ -166,7 +179,7 @@ static int RequestState(char* path) {
         printf("Client: Error on send() call2 \n");
     }
     memset(recv_msg, 0, RECV_MESSAGE_LENGTH * sizeof(char));
-    free(PathWithStringLength);
+    // free(PathWithStringLength);
     if ((data_len = recv(socket_for_requests, recv_msg, RECV_MESSAGE_LENGTH, 0)) > 0) {
         printf("Client: Data received upd: %s \n", recv_msg);
         close(socket_for_requests);
@@ -293,6 +306,7 @@ static NautilusOperationResult nautilus_3dstorage_extension_update_file_info(
     NautilusOperationHandle** const operation_handle
 ) {
     char* path;
+    setlocale(LC_ALL, "");
     GFile* location = nautilus_file_info_get_location(nautilus_file);
     path = g_file_get_path(location);
     if (!path) {
@@ -302,6 +316,8 @@ static NautilusOperationResult nautilus_3dstorage_extension_update_file_info(
     g_object_unref(location);
 
     int iconInd = RequestState(path);
+
+    printf("\nIcon index - CID \n", iconInd);
 
     nautilus_file_info_invalidate_extension_info(nautilus_file);
 
@@ -313,24 +329,136 @@ static NautilusOperationResult nautilus_3dstorage_extension_update_file_info(
 
 
 static void nautilus_3dstorage_extension_type_info_provider_iface_init(
-    NautilusInfoProviderIface* const iface,
-    gpointer const iface_data) {
-    printf("nautilus_3dstorage_extension_type_info_provider_iface_init \n");
+    NautilusInfoProviderIface* const iface) {
     iface->update_file_info = nautilus_3dstorage_extension_update_file_info;
 }
 
-
 static void nautilus_3dstorage_extension_class_init(
-    GObjectClass* const nautilus_3dstorage_extension_class,
-    gpointer class_data) {
-    printf("nautilus_3dstorage_extension_class_init\n");
+    GObjectClass* const nautilus_3dstorage_extension_class) {
     parent_class = g_type_class_peek_parent(nautilus_3dstorage_extension_class);
+}
+
+static GList* nautilus_3dstorage_extension_get_file_items(NautilusMenuProvider* provider,
+    G_GNUC_UNUSED GtkWidget* window,
+    GList* file_selection) {
+
+    printf("nautilus_3dstorage_extension_get_file_items init\n");
+    if (!file_selection) {
+        printf("return NULL\n");
+        return NULL;
+    }
+
+    DataContracts__CommandInvokeData ContextMenuRequestCommand = DATA_CONTRACTS__COMMAND_INVOKE_DATA__INIT;
+    DataContracts__Guid ContextMenuRequestCommandGuid = DATA_CONTRACTS__GUID__INIT;
+
+    ContextMenuRequestCommandGuid.lo = 5059794805538720836;
+    ContextMenuRequestCommandGuid.hi = 5424190233400613762;
+    ContextMenuRequestCommand.commandid = &ContextMenuRequestCommandGuid;
+    ContextMenuRequestCommand.commandid->has_hi = 1;
+    ContextMenuRequestCommand.commandid->has_lo = 1;
+
+    int selectedFilesCount = g_list_length(file_selection);
+    int count = 0;
+    printf("Converted selectedFilesCount - %i \n", selectedFilesCount);
+    GList* l;
+    free(pathCommand);
+    pathCommand = (char**)malloc(selectedFilesCount * sizeof(char*));
+    for (l = file_selection; l != NULL; l = l->next) {
+        NautilusFileInfo* file = NAUTILUS_FILE_INFO(l->data);
+        gchar* path;
+        GFile* fp;
+
+        printf("Converted path - 1 \n");
+        fp = nautilus_file_info_get_location(file);
+        if (!fp) {
+            continue;
+        }
+
+        printf("Converted path - 2 \n");
+        path = g_file_get_path(fp);
+        if (!path) {
+            continue;
+        }
+
+
+        printf("Converted path - 3 \n");
+        pathCommand[count] = (char*)malloc(strlen(path) * sizeof(char));
+        pathCommand[count] = path;
+        printf("Converted path - 4 \n");
+        printf("Converted path - %s \n", pathCommand[count]);
+        count++;
+
+    }
+
+    free(l);
+    printf("Converted path - ready\n");
+    ContextMenuRequestCommand.n_paths = selectedFilesCount;
+    ContextMenuRequestCommand.paths = pathCommand;
+
+    DataContracts__CommandInvokeResult commandInvokeResult;
+    commandInvokeResult = SerializeAndSend(ContextMenuRequestCommand);
+
+    GList* contextMenuItemslist;
+    contextMenuItemslist = NULL;
+    printf("ContextMenuRequestCommandResult is OK - %i\n",
+        commandInvokeResult.result == DATA_CONTRACTS__SHELL_RESULT__Ok);
+    printf("ContextMenuRequestCommandResult - HasData %i\n", commandInvokeResult.has_data == TRUE);
+    if (commandInvokeResult.result == DATA_CONTRACTS__SHELL_RESULT__Ok)
+        if (commandInvokeResult.has_data == TRUE) {
+            DataContracts__MenuData menudata;
+            menudata = *data_contracts__menu_data__unpack(NULL, commandInvokeResult.data.len,
+                commandInvokeResult.data.data);
+            printf("Client: Data received menu count %i\n", menudata.n_items);
+
+            printf("deb 1\n");
+
+            if (menudata.n_items > 0) {
+                printf("deb 2\n");
+                contextMenuItemslist = BuildContextMenu(provider, menudata, file_selection, commandInvoke);
+            }
+            printf("deb 3\n");
+        }
+    printf("deb 4\n");
+
+    return contextMenuItemslist;
+}
+
+static void commandInvoke(NautilusMenuItem* item, gpointer user_data) {
+
+    DataContracts__CommandInvokeData dataContractsCommandData = DATA_CONTRACTS__COMMAND_INVOKE_DATA__INIT;
+    DataContracts__Guid guid = DATA_CONTRACTS__GUID__INIT;
+
+    guid.hi = (long)g_object_get_data(G_OBJECT(item), "commandIdHi");
+    guid.lo = (long)g_object_get_data(G_OBJECT(item), "commandIdLo");
+
+    dataContractsCommandData.commandid = &guid;
+    dataContractsCommandData.commandid->has_hi = 1;
+    dataContractsCommandData.commandid->has_lo = 1;
+
+    dataContractsCommandData.paths = pathCommand;
+    dataContractsCommandData.n_paths = 1;
+
+    printf("Converted path >>>0 - %s \n", pathCommand[0]);
+    printf("Converted path >>>1  - %s \n", pathCommand[1]);
+
+    printf(">>> commandInvoke hi - %lu\n", dataContractsCommandData.commandid->hi);
+    printf(">>> commandInvoke lo - %lu\n", dataContractsCommandData.commandid->lo);
+    SerializeAndSend(dataContractsCommandData);
+    free(pathCommand);
+    printf(">>> commandInvoke - done\n");
+}
+
+
+static void nautilus_3dstorage_extension_menu_provider_iface_init(
+    NautilusMenuProviderInterface* const iface) {
+    printf(">>> nautilus_3dstorage_extension_menu_provider_iface_init - done\n");
+    iface->get_file_items = nautilus_3dstorage_extension_get_file_items;
+    printf(">>> nautilus_3dstorage_extension_menu_provider_iface_init - done\n");
 }
 
 
 static void nautilus_register_types(
     GTypeModule* const module) {
-    printf("nautilus_register_types \n");
     static const GTypeInfo info = {
             sizeof(GObjectClass),
             (GBaseInitFunc)NULL,
@@ -344,6 +472,16 @@ static void nautilus_register_types(
             (GTypeValueTable*)NULL
     };
 
+    static const GInterfaceInfo type_info_provider_iface_info = {
+            (GInterfaceInitFunc)nautilus_3dstorage_extension_type_info_provider_iface_init,
+            (GInterfaceFinalizeFunc)NULL,
+            NULL };
+
+    static const GInterfaceInfo menu_provider_iface_info = {
+            (GInterfaceInitFunc)nautilus_3dstorage_extension_menu_provider_iface_init,
+            (GInterfaceFinalizeFunc)NULL,
+            NULL };
+
     nautilus_3dstorage_extension_type = g_type_module_register_type(
         module,
         G_TYPE_OBJECT,
@@ -351,10 +489,11 @@ static void nautilus_register_types(
         &info,
         0);
 
-    static const GInterfaceInfo type_info_provider_iface_info = {
-            (GInterfaceInitFunc)nautilus_3dstorage_extension_type_info_provider_iface_init,
-            (GInterfaceFinalizeFunc)NULL,
-            NULL };
+    g_type_module_add_interface(
+        module,
+        nautilus_3dstorage_extension_type,
+        NAUTILUS_TYPE_MENU_PROVIDER,
+        &menu_provider_iface_info);
 
     g_type_module_add_interface(
         module,
@@ -386,11 +525,66 @@ void nautilus_module_list_types(
 void nautilus_module_initialize(
     GTypeModule* const module) {
     printf(">>nautilus_module_initialize \n");
-    I18N_INIT();
     nautilus_register_types(module);
     *provider_types = nautilus_3dstorage_extension_get_type();
     FileStateListener();
 }
 
+DataContracts__CommandInvokeResult SerializeAndSend(DataContracts__CommandInvokeData instance) {
+    int socket_for_requests = 0;
+    int data_len = 0;
+    struct sockaddr_un socket_address;
+    struct DataContractMessage serializedDataContractMessage;
+    char* recv_msg;
+    DataContracts__CommandInvokeResult res;
+    res.result = DATA_CONTRACTS__SHELL_RESULT__Error;
+    res.has_result = 1;
+    res.has_data = 0;
 
+    printf("\nIcon index test DataContract - start \n");
+    serializedDataContractMessage = SerializeDataContractMessage(instance);
+
+    recv_msg = malloc(4 * sizeof(char));
+    if ((socket_for_requests = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+        printf("Client: Error on socket() call \n");
+    }
+    socket_address.sun_family = AF_UNIX;
+    strcpy(socket_address.sun_path, ADDRESS_FOR_COMMAND);
+    data_len = strlen(socket_address.sun_path) + sizeof(socket_address.sun_family);
+
+    if (connect(socket_for_requests, (struct sockaddr*)&socket_address, data_len) == -1) {
+        printf("Client: Error on connect call \n");
+    }
+
+    printf("Client: Connected \n");
+
+    if (send(socket_for_requests, serializedDataContractMessage.message, serializedDataContractMessage.messageLength,
+        0) == -1) {
+        printf("Client: Error on send() size \n");
+    }
+
+    int sizeResMessage = 0;
+    if ((data_len = recv(socket_for_requests, recv_msg, 4, 0)) > 0) {
+        sizeResMessage = BytesToInt((unsigned char*)recv_msg);
+        printf("Client: Data received upd size: %i \n", sizeResMessage);
+        recv_msg = malloc(sizeResMessage * sizeof(char));
+    }
+    if ((data_len = recv(socket_for_requests, recv_msg, sizeResMessage, 0)) > 0) {
+        printf("Client: Data received data_len: %i \n", data_len);
+        res = *data_contracts__command_invoke_result__unpack(NULL, data_len, recv_msg);
+        printf("Client: Data received data_len: %i \n", data_len);
+        close(socket_for_requests);
+    }
+    else {
+        if (data_len < 0) {
+            printf("Client: Error on recv() call \n");
+        }
+        else {
+            printf("Client: Server socket closed \n");
+            close(socket_for_requests);
+        }
+    }
+    free(recv_msg);
+    return res;
+}
 /*  EOF  */
