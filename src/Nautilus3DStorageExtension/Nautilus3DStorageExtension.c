@@ -359,7 +359,7 @@ static GList* nautilus_3dstorage_extension_get_file_items(NautilusMenuProvider* 
 
     int selectedFilesCount = g_list_length(file_selection);
     int count = 0;
-    printf("Converted selectedFilesCount - %i \n", selectedFilesCount);
+    printf("Converted selected files count - %i \n", selectedFilesCount);
     GList* l;
     free(pathCommand);
     pathCommand = (char**)malloc(selectedFilesCount * sizeof(char*));
@@ -368,26 +368,20 @@ static GList* nautilus_3dstorage_extension_get_file_items(NautilusMenuProvider* 
         gchar* path;
         GFile* fp;
 
-        printf("Converted path - 1 \n");
         fp = nautilus_file_info_get_location(file);
         if (!fp) {
             continue;
         }
 
-        printf("Converted path - 2 \n");
         path = g_file_get_path(fp);
         if (!path) {
             continue;
         }
 
-
-        printf("Converted path - 3 \n");
         pathCommand[count] = (char*)malloc(strlen(path) * sizeof(char));
         pathCommand[count] = path;
-        printf("Converted path - 4 \n");
-        printf("Converted path - %s \n", pathCommand[count]);
+        
         count++;
-
     }
 
     free(l);
@@ -410,15 +404,10 @@ static GList* nautilus_3dstorage_extension_get_file_items(NautilusMenuProvider* 
                 commandInvokeResult.data.data);
             printf("Client: Data received menu count %i\n", menudata.n_items);
 
-            printf("deb 1\n");
-
             if (menudata.n_items > 0) {
-                printf("deb 2\n");
                 contextMenuItemslist = BuildContextMenu(provider, menudata, file_selection, commandInvoke);
             }
-            printf("deb 3\n");
         }
-    printf("deb 4\n");
 
     return contextMenuItemslist;
 }
