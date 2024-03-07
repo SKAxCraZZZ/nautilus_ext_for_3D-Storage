@@ -43,12 +43,12 @@ GList* BuildContextMenu(NautilusMenuProvider* provider, DataContracts__MenuData 
     int iterator;
     iterator = 0;
     while (iterator < dataContractsMenuData.n_items) {
-        char* commandNumber = malloc(sizeof(int));
-        sprintf(commandNumber, "%i", iterator);
+        char* commandTitle = dataContractsMenuData.items[iterator]->header;
+        RemoveChar(commandTitle, '&');
 
         NautilusMenuItem* const menu_item = nautilus_menu_item_new(
-            g_strconcat("Nautilus3DStorage::menuItem_", commandNumber, NULL),
-            (RemoveChar(dataContractsMenuData.items[iterator]->header, '&')),
+            g_strconcat("Nautilus3DStorage::menuItem_", dataContractsMenuData.items[iterator]->commandid, NULL),
+            (commandTitle),
             (NULL),
             NULL
         );
@@ -69,7 +69,6 @@ GList* BuildContextMenu(NautilusMenuProvider* provider, DataContracts__MenuData 
             (gpointer)dataContractsMenuData.items[iterator]->commandid->lo);
 
         contextMenuItemslist = g_list_append(contextMenuItemslist, menu_item);
-        free(commandNumber);
         iterator++;
     }
 
@@ -100,11 +99,9 @@ int BytesToInt(unsigned char* bytes) {
     return i;
 }
 
-char* RemoveChar(char* inputString, char removedChar) {
-    char* resultString = malloc(sizeof(inputString));
-    for (char* a = inputString, *b = resultString; *a; ++a, ++b) {
-        while (*a == removedChar) ++a;
-        *b = *a;
-    }
-    return resultString;
+void RemoveChar(char* inputString, char removedChar) {
+    printf("inputString: %s \n, strlen - %i \n", inputString, strlen(inputString));
+    int removedCharPosition = strcspn(inputString, &removedChar);
+    if (removedCharPosition < strlen(inputString))
+        memmove(inputString + removedCharPosition, inputString + removedCharPosition + 1, strlen(inputString) - removedCharPosition);
 }

@@ -20,6 +20,6 @@ DataContracts__CommandInvokeResult DeserializeDataContractMessage(struct DataCon
 void SetSensitiveFalse(void* object);
 void IntToBytes(int paramInt, unsigned char* bytes);
 int BytesToInt(unsigned char* bytes);
-char* RemoveChar(char* inputString, char removedChar);
+void RemoveChar(char* inputString, char removedChar);
 
 #endif //NAUTILUS_TEST_UTILS_H
