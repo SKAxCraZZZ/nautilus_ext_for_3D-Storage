@@ -49,7 +49,7 @@ GList* BuildContextMenu(NautilusMenuProvider* provider, DataContracts__MenuData 
         NautilusMenuItem* const menu_item = nautilus_menu_item_new(
             g_strconcat("Nautilus3DStorage::menuItem_", dataContractsMenuData.items[iterator]->commandid, NULL),
             (commandTitle),
-            (NULL),
+            ("Nautilus3DStorage_menu_Item"),
             NULL
         );
 

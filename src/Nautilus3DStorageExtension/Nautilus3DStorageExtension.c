@@ -14,7 +14,6 @@
 #include "Commands/Proto/protobuf-c/protobuf-c.h"
 #include "Commands/Proto/DataContract.pb-c.h"
 #include "Commands/Utils.h"
-#include "menu.h"
 
 #define FILE_URI_PREFIX "file://"
 #define AF_UNIX 1
@@ -61,7 +60,6 @@ static char* emblems[] = { "", "emblem-loadedstore", "emblem-outdatedstore", "em
 static GType provider_types[1];
 static GType nautilus_3dstorage_extension_type;
 static GObjectClass* parent_class;
-//DataContracts__Guid *guidCommand;
 char** pathCommand;
 typedef struct FileStateInfo {
     char* uri;
@@ -159,7 +157,7 @@ static int RequestState(char* path) {
     int sendMessageLength = strlen(PathWithStringLength + sizeOfTwoByteForStrLength) + sizeOfTerminalNull;
     char recv_msg[RECV_MESSAGE_LENGTH];
 
-    memset(recv_msg, 0, RECV_MESSAGE_LENGTH * sizeof(char));
+    memset(recv_msg, 0, RECV_MESSAGE_LENGTH);
 
     if ((socket_for_requests = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
         printf("Client: Error on socket() call \n");
@@ -178,8 +176,8 @@ static int RequestState(char* path) {
     if (send(socket_for_requests, PathWithStringLength, sendMessageLength, 0) == -1) {
         printf("Client: Error on send() call2 \n");
     }
-    memset(recv_msg, 0, RECV_MESSAGE_LENGTH * sizeof(char));
-    // free(PathWithStringLength);
+    
+    free(PathWithStringLength);
     if ((data_len = recv(socket_for_requests, recv_msg, RECV_MESSAGE_LENGTH, 0)) > 0) {
         printf("Client: Data received upd: %s \n", recv_msg);
         close(socket_for_requests);
@@ -361,7 +359,6 @@ static GList* nautilus_3dstorage_extension_get_file_items(NautilusMenuProvider* 
     int count = 0;
     printf("Converted selected files count - %i \n", selectedFilesCount);
     GList* l;
-    free(pathCommand);
     pathCommand = (char**)malloc(selectedFilesCount * sizeof(char*));
     for (l = file_selection; l != NULL; l = l->next) {
         NautilusFileInfo* file = NAUTILUS_FILE_INFO(l->data);
@@ -384,7 +381,6 @@ static GList* nautilus_3dstorage_extension_get_file_items(NautilusMenuProvider* 
         count++;
     }
 
-    free(l);
     printf("Converted path - ready\n");
     ContextMenuRequestCommand.n_paths = selectedFilesCount;
     ContextMenuRequestCommand.paths = pathCommand;
