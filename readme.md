@@ -7,8 +7,10 @@ sudo apt install libnautilus-extension-dev libglib2.0-dev
 Установить cmake 
 https://cmake.org/download/
 
-Скопировать иконки ('..\src\icons') в каталог эмблем используемой визуальной темы Linux (узнать название темы можно с помощью команды 'gsettings get org.gnome.desktop.interface icon-theme').
-Пример пути для темы 'Yaru' - '/usr/share/icons/Yaru/24x24/emblems'
+Установить иконки:
+- C помощь скрипта icons_install.sh 
+- Cкопировав вручную из папки '..\src\icons' в каталог эмблем используемой визуальной темы Linux (узнать название темы можно с помощью команды 'gsettings get org.gnome.desktop.interface icon-theme').
+Пример пути для темы 'Yaru' - '/usr/share/icons/Yaru/24x24/emblems'.
 Может потребоваться дать права на чтение пользователю, от имени которого запускается nautilus.
 
 запустить build.sh

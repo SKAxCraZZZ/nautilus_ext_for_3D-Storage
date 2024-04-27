@@ -104,4 +104,4 @@ void RemoveChar(char* inputString, char removedChar) {
     int removedCharPosition = strcspn(inputString, &removedChar);
     if (removedCharPosition < strlen(inputString))
         memmove(inputString + removedCharPosition, inputString + removedCharPosition + 1, strlen(inputString) - removedCharPosition);
-}
+}{}
