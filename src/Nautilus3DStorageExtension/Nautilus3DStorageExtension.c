@@ -61,6 +61,7 @@ static GType provider_types[1];
 static GType nautilus_3dstorage_extension_type;
 static GObjectClass* parent_class;
 char** pathCommand;
+int selectedFilesCount;
 typedef struct FileStateInfo {
     char* uri;
     int icon_index;
@@ -355,7 +356,7 @@ static GList* nautilus_3dstorage_extension_get_file_items(NautilusMenuProvider* 
     ContextMenuRequestCommand.commandid->has_hi = 1;
     ContextMenuRequestCommand.commandid->has_lo = 1;
 
-    int selectedFilesCount = g_list_length(file_selection);
+    selectedFilesCount = g_list_length(file_selection);
     int count = 0;
     printf("Converted selected files count - %i \n", selectedFilesCount);
     GList* l;
@@ -421,10 +422,7 @@ static void commandInvoke(NautilusMenuItem* item, gpointer user_data) {
     dataContractsCommandData.commandid->has_lo = 1;
 
     dataContractsCommandData.paths = pathCommand;
-    dataContractsCommandData.n_paths = 1;
-
-    printf("Converted path >>>0 - %s \n", pathCommand[0]);
-    printf("Converted path >>>1  - %s \n", pathCommand[1]);
+    dataContractsCommandData.n_paths = selectedFilesCount;
 
     printf(">>> commandInvoke hi - %lu\n", dataContractsCommandData.commandid->hi);
     printf(">>> commandInvoke lo - %lu\n", dataContractsCommandData.commandid->lo);
