@@ -6,102 +6,106 @@
 #include "Proto/DataContract.pb-c.h"
 #include <stdlib.h>
 #include <sys/un.h>
-#include <libnautilus-extension/nautilus-menu-provider.h>
+#include <nautilus-extension.h>
 
 struct DataContractMessage SerializeDataContractMessage(DataContracts__CommandInvokeData commandInvokeData) {
-    void* packed;
-    unsigned char size;
-    size = data_contracts__command_invoke_data__get_packed_size(&commandInvokeData);
-    packed = malloc(size);
-    data_contracts__command_invoke_data__pack(&commandInvokeData, packed);
-    unsigned char bytes[4];
-    IntToBytes(size, &bytes);
+	void *packed;
+	int size;
+	size = data_contracts__command_invoke_data__get_packed_size(&commandInvokeData);
+	packed = malloc(size);
+	data_contracts__command_invoke_data__pack(&commandInvokeData, packed);
 
-    int resultStringSize;
-    resultStringSize = sizeof(bytes) + size;
-    unsigned char* resultString;
-    resultString = malloc(resultStringSize);
+	char bytes[4];
+	IntToBytes(size, (char *) bytes);
 
-    memcpy(resultString, &bytes, sizeof(bytes));
-    memcpy(resultString + sizeof(bytes), packed, size);
+	int resultStringSize;
+	resultStringSize = sizeof(bytes) + size;
+	unsigned char *resultString;
+	resultString = malloc(resultStringSize);
 
-    resultString[sizeof(bytes) + size] = '\0';
+	memcpy(resultString, &bytes, sizeof(bytes));
+	memcpy(resultString + sizeof(bytes), packed, size);
 
-    struct DataContractMessage result;
-    result.messageLength = resultStringSize;
-    result.message = malloc(resultStringSize);
-    result.message = resultString;
+	resultString[sizeof(bytes) + size] = '\0';
 
-    free(packed);
-    return result;
+	struct DataContractMessage result;
+	result.messageLength = resultStringSize;
+	result.message = malloc(resultStringSize);
+	result.message = resultString;
+
+	free(packed);
+	return result;
 }
 
-GList* BuildContextMenu(NautilusMenuProvider* provider, DataContracts__MenuData dataContractsMenuData, GList* file_selection,
-    gpointer comm) {
-    GList* contextMenuItemslist;
-    contextMenuItemslist = NULL;
-    int iterator;
-    iterator = 0;
-    while (iterator < dataContractsMenuData.n_items) {
-        char* commandTitle = dataContractsMenuData.items[iterator]->header;
-        RemoveChar(commandTitle, '&');
+GList *
+BuildContextMenu(NautilusMenuProvider *provider, DataContracts__MenuData dataContractsMenuData, GList *file_selection,
+				 gpointer comm) {
+	GList *contextMenuItemslist;
+	contextMenuItemslist = NULL;
+	int iterator;
+	iterator = 0;
+	while (iterator < dataContractsMenuData.n_items) {
+		char *commandTitle = dataContractsMenuData.items[iterator]->header;
+		RemoveChar(commandTitle, '&');
 
-        NautilusMenuItem* const menu_item = nautilus_menu_item_new(
-            g_strconcat("Nautilus3DStorage::menuItem_", dataContractsMenuData.items[iterator]->commandid, NULL),
-            (commandTitle),
-            ("Nautilus3DStorage_menu_Item"),
-            NULL
-        );
+		NautilusMenuItem *const menu_item = nautilus_menu_item_new(
+				g_strconcat("Nautilus3DStorage::menuItem_", dataContractsMenuData.items[iterator]->commandid, NULL),
+				(commandTitle),
+				("Nautilus3DStorage_menu_Item"),
+				NULL
+		);
 
-        g_signal_connect(
-            menu_item,
-            "activate",
-            G_CALLBACK(comm),
-            provider
-        );
+		g_signal_connect(
+				menu_item,
+				"activate",
+				G_CALLBACK(comm),
+				provider
+		);
 
-        if (!dataContractsMenuData.items[iterator]->isenabled)
-            SetSensitiveFalse(menu_item);
+		if (!dataContractsMenuData.items[iterator]->isenabled)
+			SetSensitiveFalse(menu_item);
 
-        g_object_set_data(G_OBJECT(menu_item), "commandIdHi",
-            (gpointer)dataContractsMenuData.items[iterator]->commandid->hi);
-        g_object_set_data(G_OBJECT(menu_item), "commandIdLo",
-            (gpointer)dataContractsMenuData.items[iterator]->commandid->lo);
+		g_object_set_data(G_OBJECT(menu_item), "commandIdHi",
+						  (gpointer) dataContractsMenuData.items[iterator]->commandid->hi);
+		g_object_set_data(G_OBJECT(menu_item), "commandIdLo",
+						  (gpointer) dataContractsMenuData.items[iterator]->commandid->lo);
+		g_object_set_data(G_OBJECT(menu_item), "3DStorage:files", nautilus_file_info_list_copy(file_selection));
 
-        contextMenuItemslist = g_list_append(contextMenuItemslist, menu_item);
-        iterator++;
-    }
+		contextMenuItemslist = g_list_append(contextMenuItemslist, menu_item);
+		iterator++;
+	}
 
-    return contextMenuItemslist;
+	return contextMenuItemslist;
 }
 
-void IntToBytes(int paramInt, unsigned char* bytes) {
-    bytes[3] = (paramInt >> 24) & 0xFF;
-    bytes[2] = (paramInt >> 16) & 0xFF;
-    bytes[1] = (paramInt >> 8) & 0xFF;
-    bytes[0] = paramInt & 0xFF;
+void IntToBytes(int paramInt, char *bytes) {
+	bytes[3] = (paramInt >> 24) & 0xFF;
+	bytes[2] = (paramInt >> 16) & 0xFF;
+	bytes[1] = (paramInt >> 8) & 0xFF;
+	bytes[0] = paramInt & 0xFF;
 }
 
-void SetSensitiveFalse(void* object) {
-    GValue value = G_VALUE_INIT;
-    g_value_init(&value, G_TYPE_BOOLEAN);
-    g_value_set_boolean(&value, FALSE);
-    g_object_set_property(G_OBJECT(object), "sensitive", &value);
+void SetSensitiveFalse(void *object) {
+	GValue value = G_VALUE_INIT;
+	g_value_init(&value, G_TYPE_BOOLEAN);
+	g_value_set_boolean(&value, FALSE);
+	g_object_set_property(G_OBJECT(object), "sensitive", &value);
 }
 
-int BytesToInt(unsigned char* bytes) {
-    int i =
-        (bytes[3] << 24) |
-        (bytes[2] << 16) |
-        (bytes[1] << 8) |
-        (bytes[0]);
+int BytesToInt(char *bytes) {
+	int i =
+			(bytes[3] << 24) |
+			(bytes[2] << 16) |
+			(bytes[1] << 8) |
+			(bytes[0]);
 
-    return i;
+	return i;
 }
 
-void RemoveChar(char* inputString, char removedChar) {
-    printf("inputString: %s \n, strlen - %i \n", inputString, strlen(inputString));
-    int removedCharPosition = strcspn(inputString, &removedChar);
-    if (removedCharPosition < strlen(inputString))
-        memmove(inputString + removedCharPosition, inputString + removedCharPosition + 1, strlen(inputString) - removedCharPosition);
-}{}
+void RemoveChar(char *inputString, char removedChar) {
+	printf("inputString: %s \n, strlen - %i \n", inputString, strlen(inputString));
+	int removedCharPosition = strcspn(inputString, &removedChar);
+	if (removedCharPosition < strlen(inputString))
+		memmove(inputString + removedCharPosition, inputString + removedCharPosition + 1,
+				strlen(inputString) - removedCharPosition);
+}
